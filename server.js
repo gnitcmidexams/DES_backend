@@ -349,11 +349,11 @@ function generateQuestions(paperType) {
             { label: '7a', unit: 3, half: 'first' }
         ];
         partALabels = [
-            { label: 'part-A-1', unit: 1 },
-            { label: 'part-A-2', unit: 1 },
-            { label: 'part-A-3', unit: 2 },
-            { label: 'part-A-4', unit: 2 },
-            { label: 'part-A-5', unit: 3 }
+            { label: '1', unit: 1 },
+            { label: '2', unit: 1 },
+            { label: '3', unit: 2 },
+            { label: '4', unit: 2 },
+            { label: '5', unit: 3 }
         ];
     } else if (paperType === 'mid2') {
         questionLabels = [
