@@ -349,33 +349,33 @@ function generateQuestions(paperType) {
             { label: '7a', unit: 3, half: 'first' }
         ];
         partALabels = [
-            { label: '1', unit: 1 },
-            { label: '2', unit: 1 },
-            { label: '3', unit: 2 },
-            { label: '4', unit: 2 },
-            { label: '5', unit: 3 }
+            { label: 'part-A-1', unit: 1 },
+            { label: 'part-A-2', unit: 1 },
+            { label: 'part-A-3', unit: 2 },
+            { label: 'part-A-4', unit: 2 },
+            { label: 'part-A-5', unit: 3 }
         ];
     } else if (paperType === 'mid2') {
         questionLabels = [
-            { label: '2a', unit: 3, half: 'second' },
-            { label: '2b', unit: 3, half: 'second' },
+            { label: '2a', unit: 4, half: 'first' },
+            { label: '2b', unit: 4, half: 'first' },
             { label: '3a', unit: 4, half: 'first' },
             { label: '3b', unit: 4, half: 'first' },
-            { label: '4a', unit: 4, half: 'first' },
-            { label: '4b', unit: 4, half: 'first' },
-            { label: '5a', unit: 4, half: 'second' },
+            { label: '4a', unit: 5, half: 'first' },
+            { label: '4b', unit: 5, half: 'first' },
+            { label: '5a', unit: 5, half: 'first' },
             { label: '5b', unit: 5, half: 'first' },
-            { label: '6a', unit: 5, half: 'first' },
-            { label: '6b', unit: 5, half: 'first' },
-            { label: '7a', unit: 5 },
+            { label: '6a', unit: 3, half: 'second' },
+            { label: '6b', unit: 4 },
+            { label: '7a', unit: 3, half: 'second' },
             { label: '7b', unit: 5 }
         ];
         partALabels = [
-            { label: '1', unit: 3 },
-            { label: '2', unit: 4 },
-            { label: '3', unit: 4 },
-            { label: '4', unit: 5 },
-            { label: '5', unit: 5 }
+            { label: 'part-A-1', unit: 3 },
+            { label: 'part-A-2', unit: 4 },
+            { label: 'part-A-3', unit: 4 },
+            { label: 'part-A-4', unit: 5 },
+            { label: 'part-A-5', unit: 5 }
         ];
     } else {
         throw new Error('Invalid paper type');
