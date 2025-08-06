@@ -371,11 +371,11 @@ function generateQuestions(paperType) {
             { label: '7b', unit: 5 }
         ];
         partALabels = [
-            { label: 'part-A-1', unit: 3 },
-            { label: 'part-A-2', unit: 4 },
-            { label: 'part-A-3', unit: 4 },
-            { label: 'part-A-4', unit: 5 },
-            { label: 'part-A-5', unit: 5 }
+            { label: '1', unit: 3 },
+            { label: '2', unit: 4 },
+            { label: '3', unit: 4 },
+            { label: '4', unit: 5 },
+            { label: '5', unit: 5 }
         ];
     } else {
         throw new Error('Invalid paper type');
