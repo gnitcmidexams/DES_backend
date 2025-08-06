@@ -335,18 +335,18 @@ function generateQuestions(paperType) {
     let partALabels;
     if (paperType === 'mid1') {
         questionLabels = [
-            { label: '2a', unit: 1 },
-            { label: '2b', unit: 1 },
-            { label: '3a', unit: 1 },
-            { label: '3b', unit: 1 },
+            { label: '2a', unit: 1, half: 'first' },
+            { label: '2b', unit: 1, half: 'first' },
+            { label: '3a', unit: 1, half: 'second' },
+            { label: '3b', unit: 1, half: 'second' },
             { label: '6b', unit: 1 },
-            { label: '4a', unit: 2 },
-            { label: '4b', unit: 2 },
-            { label: '5a', unit: 2 },
-            { label: '5b', unit: 2 },
+            { label: '4a', unit: 2, half: 'first' },
+            { label: '4b', unit: 2, half: 'first' },
+            { label: '5a', unit: 2, half: 'second' },
+            { label: '5b', unit: 2, half: 'second' },
             { label: '7b', unit: 2 },
-            { label: '6a', unit: 3 },
-            { label: '7a', unit: 3 }
+            { label: '6a', unit: 3, half: 'first' },
+            { label: '7a', unit: 3, half: 'first' }
         ];
         partALabels = [
             { label: '1', unit: 1 },
@@ -357,16 +357,16 @@ function generateQuestions(paperType) {
         ];
     } else if (paperType === 'mid2') {
         questionLabels = [
-            { label: '2a', unit: 3 },
-            { label: '2b', unit: 3 },
-            { label: '3a', unit: 4 },
-            { label: '3b', unit: 4 },
-            { label: '4a', unit: 4 },
-            { label: '4b', unit: 4 },
-            { label: '5a', unit: 4 },
-            { label: '5b', unit: 5 },
-            { label: '6a', unit: 5 },
-            { label: '6b', unit: 5 },
+            { label: '2a', unit: 3, half: 'second' },
+            { label: '2b', unit: 3, half: 'second' },
+            { label: '3a', unit: 4, half: 'first' },
+            { label: '3b', unit: 4, half: 'first' },
+            { label: '4a', unit: 4, half: 'first' },
+            { label: '4b', unit: 4, half: 'first' },
+            { label: '5a', unit: 4, half: 'second' },
+            { label: '5b', unit: 5, half: 'first' },
+            { label: '6a', unit: 5, half: 'first' },
+            { label: '6b', unit: 5, half: 'first' },
             { label: '7a', unit: 5 },
             { label: '7b', unit: 5 }
         ];
@@ -426,15 +426,28 @@ function generateQuestions(paperType) {
         let unitCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
         let btlCount = {};
         let remainingQuestions = [...partBQuestions];
+        // Track BTL levels for paired questions to ensure they differ
+        let pairedBTLs = {};
 
-        const pickQuestionFromUnit = (btl, unit) => {
+        const pickQuestionFromUnit = (btl, unit, half, label, pairedLabelBTL = null) => {
             let unitQuestions = remainingQuestions.filter(q => q.unit === unit);
+            if (half) {
+                // Sort questions by sno for consistent ordering
+                unitQuestions.sort((a, b) => parseInt(a.sno || 0) - parseInt(b.sno || 0));
+                const midPoint = Math.ceil(unitQuestions.length / 2);
+                unitQuestions = half === 'first' ? unitQuestions.slice(0, midPoint) : unitQuestions.slice(midPoint);
+            }
             let btlMatches = unitQuestions.filter(q => q.btLevel === btl);
+            if (pairedLabelBTL && btlMatches.length > 0) {
+                // Exclude the paired label's BTL if specified
+                btlMatches = btlMatches.filter(q => q.btLevel !== pairedLabelBTL);
+            }
             if (btlMatches.length === 0 || unitCount[unit] >= unitReqs.find(r => r.unit === unit).maxCount) {
-                btlMatches = unitQuestions;
+                // Fallback to any available question in the unit, excluding paired BTL if specified
+                btlMatches = unitQuestions.filter(q => !pairedLabelBTL || q.btLevel !== pairedLabelBTL);
             }
             if (btlMatches.length === 0) {
-                throw new Error(`No questions available for Unit ${unit}`);
+                throw new Error(`No questions available for Unit ${unit}${half ? ` (${half} half)` : ''}${pairedLabelBTL ? ` excluding BTL ${pairedLabelBTL}` : ''}`);
             }
             const idx = Math.floor(Math.random() * btlMatches.length);
             const q = btlMatches[idx];
@@ -443,6 +456,16 @@ function generateQuestions(paperType) {
             btlCount[q.btLevel] = (btlCount[q.btLevel] || 0) + 1;
             return q;
         };
+
+        // Define paired labels
+        const labelPairs = [
+            ['2a', '2b'],
+            ['3a', '3b'],
+            ['4a', '4b'],
+            ['5a', '5b'],
+            ['6a', '6b'],
+            ['7a', '7b']
+        ];
 
         for (const label of labels) {
             let btl = null;
@@ -456,7 +479,17 @@ function generateQuestions(paperType) {
             if (!btl) {
                 btl = [...availableBTLs][Math.floor(Math.random() * availableBTLs.size)];
             }
-            const q = pickQuestionFromUnit(btl, label.unit);
+
+            // Find if this label is part of a pair and get the paired label's BTL if already selected
+            let pairedLabelBTL = null;
+            const pair = labelPairs.find(p => p.includes(label.label));
+            if (pair) {
+                const pairedLabel = pair[0] === label.label ? pair[1] : pair[0];
+                pairedLabelBTL = pairedBTLs[pairedLabel];
+            }
+
+            const q = pickQuestionFromUnit(btl, label.unit, label.half, label.label, pairedLabelBTL);
+            pairedBTLs[label.label] = q.btLevel; // Store the BTL for this label
             selectedQuestions.push({ ...q, label: label.label, part: 'B' });
         }
 
@@ -464,6 +497,15 @@ function generateQuestions(paperType) {
         for (const req of unitReqs) {
             if (unitCount[req.unit] < req.minCount) {
                 throw new Error(`Unit ${req.unit} has ${unitCount[req.unit]} questions, needs at least ${req.minCount}`);
+            }
+        }
+
+        // Validate that paired questions have different BTLs
+        for (const [labelA, labelB] of labelPairs) {
+            const qA = selectedQuestions.find(q => q.label === labelA);
+            const qB = selectedQuestions.find(q => q.label === labelB);
+            if (qA && qB && qA.btLevel === qB.btLevel) {
+                throw new Error(`Paired questions ${labelA} and ${labelB} have the same BTL level (${qA.btLevel})`);
             }
         }
 
