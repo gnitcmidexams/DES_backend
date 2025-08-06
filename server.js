@@ -339,14 +339,15 @@ function generateQuestions(paperType) {
             { label: '2b', unit: 1, half: 'first' },
             { label: '3a', unit: 1, half: 'second' },
             { label: '3b', unit: 1, half: 'second' },
-            { label: '6b', unit: 1 },
             { label: '4a', unit: 2, half: 'first' },
             { label: '4b', unit: 2, half: 'first' },
             { label: '5a', unit: 2, half: 'second' },
             { label: '5b', unit: 2, half: 'second' },
-            { label: '7b', unit: 2 },
             { label: '6a', unit: 3, half: 'first' },
-            { label: '7a', unit: 3, half: 'first' }
+            { label: '6b', unit: 1 },
+            { label: '7a', unit: 3, half: 'first' },
+            { label: '7b', unit: 2 }
+            
         ];
         partALabels = [
             { label: '1.a', unit: 1 },
