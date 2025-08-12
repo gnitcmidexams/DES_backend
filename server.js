@@ -192,7 +192,10 @@ function processExcelData(data) {
 
         const unit = romanToInt(row.Unit);
         const month = excelDateToString(row.Month);
+        const sno = String(row['S.NO'] || '');
         
+        console.log(`Row ${index + 1}: S.NO = ${sno}, Unit = ${unit}, Question = ${questionText.substring(0, 50)}...`);
+
         return {
             id: index + 1,
             unit: unit,
@@ -206,7 +209,7 @@ function processExcelData(data) {
             semester: String(row.Sem || ''),
             month: month,
             imageUrl: row['Image Url'] ? getDirectImageURL(String(row['Image Url'])) : '',
-            sno: String(row['S.NO'] || '')
+            sno: sno
         };
     }).filter(q => q.unit >= 1 && q.unit <= 5 && q.btLevel !== '0');
 }
@@ -347,7 +350,6 @@ function generateQuestions(paperType) {
             { label: '6b', unit: 1 },
             { label: '7a', unit: 3, half: 'first' },
             { label: '7b', unit: 2 }
-            
         ];
         partALabels = [
             { label: '1.a', unit: 1 },
@@ -433,8 +435,12 @@ function generateQuestions(paperType) {
         const pickQuestionFromUnit = (btl, unit, half, label, pairedLabelBTL = null) => {
             let unitQuestions = remainingQuestions.filter(q => q.unit === unit);
             if (half) {
-                // Sort questions by sno for consistent ordering
-                unitQuestions.sort((a, b) => parseInt(a.sno || 0) - parseInt(b.sno || 0));
+                // Sort questions by sno for consistent ordering, handling missing or non-numeric sno
+                unitQuestions.sort((a, b) => {
+                    const snoA = isNaN(parseInt(a.sno)) ? 0 : parseInt(a.sno);
+                    const snoB = isNaN(parseInt(b.sno)) ? 0 : parseInt(b.sno);
+                    return snoA - snoB;
+                });
                 const midPoint = Math.ceil(unitQuestions.length / 2);
                 unitQuestions = half === 'first' ? unitQuestions.slice(0, midPoint) : unitQuestions.slice(midPoint);
             }
@@ -510,14 +516,13 @@ function generateQuestions(paperType) {
             }
         }
 
-        // Sort by unit and label
+        // Sort only by labelOrder to maintain exact sequence
         selectedQuestions.sort((a, b) => {
-            if (a.unit !== b.unit) return a.unit - b.unit;
             const labelOrder = ['2a', '2b', '3a', '3b', '4a', '4b', '5a', '5b', '6a', '6b', '7a', '7b'];
             return labelOrder.indexOf(a.label) - labelOrder.indexOf(b.label);
         });
 
-        console.log('Selected Part B Questions:', selectedQuestions.map(q => `Label ${q.label}, Unit ${q.unit}, BTL ${q.btLevel}`));
+        console.log('Selected Part B Questions:', selectedQuestions.map(q => `Label ${q.label}, Unit ${q.unit}, BTL ${q.btLevel}, SNO ${q.sno}`));
         console.log('Part B Unit Count:', unitCount);
         console.log('Part B BTL Count:', btlCount);
         return selectedQuestions;
@@ -549,28 +554,14 @@ app.post('/api/generate', (req, res) => {
         }
 
         const { partA, partB } = generateQuestions(paperType);
-        console.log('Generated Questions:');
+        console.log('Generated Questions Order:');
         console.log('Part A:');
         partA.forEach((q, index) => {
-            console.log(`Question ${q.label}:`);
-            console.log(`  Question: ${q.question}`);
-            console.log(`  Unit: ${q.unit}`);
-            console.log(`  BTL: ${q.btLevel}`);
-            console.log(`  Subject: ${q.subject}`);
-            console.log(`  Subject Code: ${q.subjectCode}`);
-            console.log(`  Year: ${q.year}`);
-            console.log('------------------------');
+            console.log(`Question ${q.label}: Unit ${q.unit}, BTL ${q.btLevel}, Question: ${q.question.substring(0, 50)}...`);
         });
         console.log('Part B:');
         partB.forEach((q, index) => {
-            console.log(`Question ${q.label}:`);
-            console.log(`  Question: ${q.question}`);
-            console.log(`  Unit: ${q.unit}`);
-            console.log(`  BTL: ${q.btLevel}`);
-            console.log(`  Subject: ${q.subject}`);
-            console.log(`  Subject Code: ${q.subjectCode}`);
-            console.log(`  Year: ${q.year}`);
-            console.log('------------------------');
+            console.log(`Question ${q.label}: Unit ${q.unit}, BTL ${q.btLevel}, SNO ${q.sno}, Question: ${q.question.substring(0, 50)}...`);
         });
 
         // Extract paper details from the first question
