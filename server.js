@@ -163,10 +163,17 @@ app.post('/api/upload', upload.single('excelFile'), (req, res) => {
     }
 });
 
-// Helper Function to Convert Roman Numerals to Integers
+// Helper Function to Convert Roman Numerals or Numbers to Integers
 function romanToInt(roman) {
     const romanMap = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5 };
-    return romanMap[String(roman).toUpperCase()] || 0;
+    const input = String(roman).trim().toUpperCase();
+    // Check if the input is a number
+    const numeric = parseInt(input, 10);
+    if (!isNaN(numeric) && numeric >= 1 && numeric <= 5) {
+        return numeric;
+    }
+    // Otherwise, treat as Roman numeral
+    return romanMap[input] || 0;
 }
 
 // Helper Function to Convert Excel Date to Readable Format
@@ -178,7 +185,7 @@ function excelDateToString(excelDate) {
 
 // Helper Function to Process Excel Data with Line Break Handling
 function processExcelData(data) {
-    return data.map((row, index) => {
+    const processedData = data.map((row, index) => {
         const btLevelRaw = String(row['B.T Level'] || '').trim();
         const btLevel = btLevelRaw.replace(/^L/i, '');
         
@@ -192,11 +199,8 @@ function processExcelData(data) {
 
         const unit = romanToInt(row.Unit);
         const month = excelDateToString(row.Month);
-        const sno = String(row['S.NO'] || '');
         
-        console.log(`Row ${index + 1}: S.NO = ${sno}, Unit = ${unit}, Question = ${questionText.substring(0, 50)}...`);
-
-        return {
+        const question = {
             id: index + 1,
             unit: unit,
             question: questionText,
@@ -209,9 +213,17 @@ function processExcelData(data) {
             semester: String(row.Sem || ''),
             month: month,
             imageUrl: row['Image Url'] ? getDirectImageURL(String(row['Image Url'])) : '',
-            sno: sno
+            sno: String(row['S.NO'] || '')
         };
-    }).filter(q => q.unit >= 1 && q.unit <= 5 && q.btLevel !== '0');
+
+        console.log(`Processing question ${index + 1}: Unit=${row.Unit} -> ${unit}, BTL=${btLevelRaw} -> ${btLevel}`);
+        return question;
+    });
+
+    const filteredData = processedData.filter(q => q.unit >= 1 && q.unit <= 5 && q.btLevel !== '0');
+    console.log(`Filtered ${processedData.length - filteredData.length} questions due to invalid unit or BTL`);
+
+    return filteredData;
 }
 
 // Function to generate questions for Part A and Part B
@@ -219,6 +231,8 @@ function generateQuestions(paperType) {
     if (!questionBank || questionBank.length < 17) {
         throw new Error(`Insufficient questions in question bank: got ${questionBank.length}, need at least 17 (5 for Part A, 12 for Part B)`);
     }
+
+    const totalQuestions = questionBank.length;
 
     // Step 1: Filter questions by BTL and Unit for Part A and Part B
     const partAQuestions = questionBank.filter(q => q.btLevel === '1' && q.unit >= 1 && q.unit <= 5);
@@ -271,7 +285,6 @@ function generateQuestions(paperType) {
 
     // Step 3: Assess available questions by unit and BTL for Part B
     const availableByUnitAndBTL = {};
-    const availableBTLs = new Set();
     for (let unit = 1; unit <= 5; unit++) {
         availableByUnitAndBTL[unit] = {};
         partBQuestions.filter(q => q.unit === unit).forEach(q => {
@@ -279,61 +292,11 @@ function generateQuestions(paperType) {
                 availableByUnitAndBTL[unit][q.btLevel] = [];
             }
             availableByUnitAndBTL[unit][q.btLevel].push(q);
-            availableBTLs.add(q.btLevel);
         });
     }
     console.log('Available questions for Part B by unit and BTL:', availableByUnitAndBTL);
-    console.log('Unique BTLs for Part B:', [...availableBTLs]);
 
-    // Step 4: Determine maximum BTL level for Part B
-    const btLevels = partBQuestions.map(q => parseInt(q.btLevel) || 0).filter(btl => btl > 0);
-    if (btLevels.length === 0) {
-        throw new Error('No valid BTL levels found in Part B question bank');
-    }
-    const maxBTL = Math.max(...btLevels);
-    console.log('Max BTL for Part B:', maxBTL);
-
-    // Step 5: Define BTL requirements for Part B
-    let btlRequirements;
-    if (maxBTL === 6) {
-        btlRequirements = [
-            { level: '2', count: 4 },
-            { level: '3', count: 4 },
-            { level: '4', count: 2 },
-            { level: 'random', options: ['5', '6'], count: 2 }
-        ];
-    } else if (maxBTL === 5) {
-        btlRequirements = [
-            { level: '2', count: 4 },
-            { level: '3', count: 4 },
-            { level: '4', count: 2 },
-            { level: 'random', options: ['5', '3'], count: 2 }
-        ];
-    } else if (maxBTL === 4) {
-        btlRequirements = [
-            { level: '2', count: 4 },
-            { level: '3', count: 4 },
-            { level: '4', count: 2 },
-            { level: 'random', options: ['3', '4'], count: 2 }
-        ];
-    } else if (maxBTL === 3) {
-        btlRequirements = [
-            { level: '2', count: 5 },
-            { level: '3', count: 5 },
-            { level: 'random', options: ['2', '3'], count: 2 }
-        ];
-    } else if (maxBTL === 2 && availableBTLs.has('2')) {
-        btlRequirements = [
-            { level: '2', count: 12 }
-        ];
-    } else if (availableBTLs.size === 1) {
-        btlRequirements = [{ level: [...availableBTLs][0], count: 12 }];
-    } else {
-        throw new Error(`Unsupported case: Max BTL = ${maxBTL} with BTLs (${[...availableBTLs]}).`);
-    }
-    console.log('BTL Requirements for Part B:', btlRequirements);
-
-    // Step 6: Define unit requirements and question labels based on paper type
+    // Step 4: Define unit requirements and question labels based on paper type
     let questionLabels;
     let partALabels;
     if (paperType === 'mid1') {
@@ -352,11 +315,11 @@ function generateQuestions(paperType) {
             { label: '7b', unit: 2 }
         ];
         partALabels = [
-            { label: '1.a', unit: 1 },
-            { label: '  b', unit: 1 },
-            { label: '  c', unit: 2 },
-            { label: '  d', unit: 2 },
-            { label: '  e', unit: 3 }
+            { label: '1', unit: 1 },
+            { label: '2', unit: 1 },
+            { label: '3', unit: 2 },
+            { label: '4', unit: 2 },
+            { label: '5', unit: 3 }
         ];
     } else if (paperType === 'mid2') {
         questionLabels = [
@@ -374,11 +337,11 @@ function generateQuestions(paperType) {
             { label: '7b', unit: 5 }
         ];
         partALabels = [
-            { label: '1.a', unit: 3 },
-            { label: '  b', unit: 4 },
-            { label: '  c', unit: 4 },
-            { label: '  d', unit: 5 },
-            { label: '  e', unit: 5 }
+            { label: '1', unit: 3 },
+            { label: '2', unit: 4 },
+            { label: '3', unit: 4 },
+            { label: '4', unit: 5 },
+            { label: '5', unit: 5 }
         ];
     } else {
         throw new Error('Invalid paper type');
@@ -388,7 +351,10 @@ function generateQuestions(paperType) {
     console.log('Unit Requirements for Part A:', partAUnitRequirements);
     console.log('Question Labels for Part A:', partALabels);
 
-    // Step 7: Select questions for Part A
+    // Identify the small unit (with minCount 2)
+    const smallUnit = unitRequirements.find(r => r.minCount === 2)?.unit || null;
+
+    // Step 5: Select questions for Part A
     const selectPartAQuestions = (unitReqs, labels) => {
         let selectedQuestions = [];
         let unitCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -423,48 +389,44 @@ function generateQuestions(paperType) {
         return selectedQuestions;
     };
 
-    // Step 8: Select questions for Part B
-    const selectPartBQuestions = (btlReqs, unitReqs, labels) => {
+    // Step 6: Select questions for Part B
+    const selectPartBQuestions = (unitReqs, labels) => {
         let selectedQuestions = [];
         let unitCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
         let btlCount = {};
         let remainingQuestions = [...partBQuestions];
-        // Track BTL levels for paired questions to ensure they differ
         let pairedBTLs = {};
 
-        const pickQuestionFromUnit = (btl, unit, half, label, pairedLabelBTL = null) => {
+        const pickRandomQuestionFromUnit = (unit, half, label, excludeBTL = null) => {
+            let effectiveHalf = half;
+            if (smallUnit && unit === smallUnit && totalQuestions <= 50) {
+                effectiveHalf = undefined;
+            }
+
             let unitQuestions = remainingQuestions.filter(q => q.unit === unit);
-            if (half) {
-                // Sort questions by sno for consistent ordering, handling missing or non-numeric sno
-                unitQuestions.sort((a, b) => {
-                    const snoA = isNaN(parseInt(a.sno)) ? 0 : parseInt(a.sno);
-                    const snoB = isNaN(parseInt(b.sno)) ? 0 : parseInt(b.sno);
-                    return snoA - snoB;
-                });
+            if (effectiveHalf) {
+                unitQuestions.sort((a, b) => parseInt(a.sno || 0) - parseInt(b.sno || 0));
                 const midPoint = Math.ceil(unitQuestions.length / 2);
-                unitQuestions = half === 'first' ? unitQuestions.slice(0, midPoint) : unitQuestions.slice(midPoint);
+                unitQuestions = effectiveHalf === 'first' ? unitQuestions.slice(0, midPoint) : unitQuestions.slice(midPoint);
             }
-            let btlMatches = unitQuestions.filter(q => q.btLevel === btl);
-            if (pairedLabelBTL && btlMatches.length > 0) {
-                // Exclude the paired label's BTL if specified
-                btlMatches = btlMatches.filter(q => q.btLevel !== pairedLabelBTL);
+            let filteredQuestions = unitQuestions;
+            if (excludeBTL) {
+                filteredQuestions = unitQuestions.filter(q => q.btLevel !== excludeBTL);
             }
-            if (btlMatches.length === 0 || unitCount[unit] >= unitReqs.find(r => r.unit === unit).maxCount) {
-                // Fallback to any available question in the unit, excluding paired BTL if specified
-                btlMatches = unitQuestions.filter(q => !pairedLabelBTL || q.btLevel !== pairedLabelBTL);
+            if (filteredQuestions.length === 0) {
+                filteredQuestions = unitQuestions;
             }
-            if (btlMatches.length === 0) {
-                throw new Error(`No questions available for Unit ${unit}${half ? ` (${half} half)` : ''}${pairedLabelBTL ? ` excluding BTL ${pairedLabelBTL}` : ''}`);
+            if (filteredQuestions.length === 0 || unitCount[unit] >= unitReqs.find(r => r.unit === unit).maxCount) {
+                throw new Error(`No questions available for Unit ${unit}${effectiveHalf ? ` (${effectiveHalf} half)` : ''}${excludeBTL ? ` excluding BTL ${excludeBTL}` : ''}`);
             }
-            const idx = Math.floor(Math.random() * btlMatches.length);
-            const q = btlMatches[idx];
+            const idx = Math.floor(Math.random() * filteredQuestions.length);
+            const q = filteredQuestions[idx];
             remainingQuestions = remainingQuestions.filter(r => r.id !== q.id);
             unitCount[q.unit]++;
             btlCount[q.btLevel] = (btlCount[q.btLevel] || 0) + 1;
             return q;
         };
 
-        // Define paired labels
         const labelPairs = [
             ['2a', '2b'],
             ['3a', '3b'],
@@ -475,61 +437,32 @@ function generateQuestions(paperType) {
         ];
 
         for (const label of labels) {
-            let btl = null;
-            for (const req of btlReqs) {
-                if (req.count > 0) {
-                    btl = req.level === 'random' ? req.options[Math.floor(Math.random() * req.options.length)] : req.level;
-                    req.count--;
-                    break;
-                }
-            }
-            if (!btl) {
-                btl = [...availableBTLs][Math.floor(Math.random() * availableBTLs.size)];
-            }
-
-            // Find if this label is part of a pair and get the paired label's BTL if already selected
-            let pairedLabelBTL = null;
+            let excludeBTL = null;
             const pair = labelPairs.find(p => p.includes(label.label));
             if (pair) {
                 const pairedLabel = pair[0] === label.label ? pair[1] : pair[0];
-                pairedLabelBTL = pairedBTLs[pairedLabel];
+                excludeBTL = pairedBTLs[pairedLabel];
             }
 
-            const q = pickQuestionFromUnit(btl, label.unit, label.half, label.label, pairedLabelBTL);
-            pairedBTLs[label.label] = q.btLevel; // Store the BTL for this label
+            const q = pickRandomQuestionFromUnit(label.unit, label.half, label.label, excludeBTL);
+            pairedBTLs[label.label] = q.btLevel;
             selectedQuestions.push({ ...q, label: label.label, part: 'B' });
         }
 
-        // Validate unit requirements
         for (const req of unitReqs) {
             if (unitCount[req.unit] < req.minCount) {
                 throw new Error(`Unit ${req.unit} has ${unitCount[req.unit]} questions, needs at least ${req.minCount}`);
             }
         }
 
-        // Validate that paired questions have different BTLs
-        for (const [labelA, labelB] of labelPairs) {
-            const qA = selectedQuestions.find(q => q.label === labelA);
-            const qB = selectedQuestions.find(q => q.label === labelB);
-            if (qA && qB && qA.btLevel === qB.btLevel) {
-                throw new Error(`Paired questions ${labelA} and ${labelB} have the same BTL level (${qA.btLevel})`);
-            }
-        }
-
-        // Sort only by labelOrder to maintain exact sequence
-        selectedQuestions.sort((a, b) => {
-            const labelOrder = ['2a', '2b', '3a', '3b', '4a', '4b', '5a', '5b', '6a', '6b', '7a', '7b'];
-            return labelOrder.indexOf(a.label) - labelOrder.indexOf(b.label);
-        });
-
-        console.log('Selected Part B Questions:', selectedQuestions.map(q => `Label ${q.label}, Unit ${q.unit}, BTL ${q.btLevel}, SNO ${q.sno}`));
+        console.log('Selected Part B Questions:', selectedQuestions.map(q => `Label ${q.label}, Unit ${q.unit}, BTL ${q.btLevel}`));
         console.log('Part B Unit Count:', unitCount);
         console.log('Part B BTL Count:', btlCount);
         return selectedQuestions;
     };
 
     const partASelected = selectPartAQuestions(partAUnitRequirements, partALabels);
-    const partBSelected = selectPartBQuestions(btlRequirements, unitRequirements, questionLabels);
+    const partBSelected = selectPartBQuestions(unitRequirements, questionLabels);
 
     if (partASelected.length !== 5) {
         throw new Error('Failed to select exactly 5 questions for Part A');
@@ -554,17 +487,30 @@ app.post('/api/generate', (req, res) => {
         }
 
         const { partA, partB } = generateQuestions(paperType);
-        console.log('Generated Questions Order:');
+        console.log('Generated Questions:');
         console.log('Part A:');
         partA.forEach((q, index) => {
-            console.log(`Question ${q.label}: Unit ${q.unit}, BTL ${q.btLevel}, Question: ${q.question.substring(0, 50)}...`);
+            console.log(`Question ${q.label}:`);
+            console.log(`  Question: ${q.question}`);
+            console.log(`  Unit: ${q.unit}`);
+            console.log(`  BTL: ${q.btLevel}`);
+            console.log(`  Subject: ${q.subject}`);
+            console.log(`  Subject Code: ${q.subjectCode}`);
+            console.log(`  Year: ${q.year}`);
+            console.log('------------------------');
         });
         console.log('Part B:');
         partB.forEach((q, index) => {
-            console.log(`Question ${q.label}: Unit ${q.unit}, BTL ${q.btLevel}, SNO ${q.sno}, Question: ${q.question.substring(0, 50)}...`);
+            console.log(`Question ${q.label}:`);
+            console.log(`  Question: ${q.question}`);
+            console.log(`  Unit: ${q.unit}`);
+            console.log(`  BTL: ${q.btLevel}`);
+            console.log(`  Subject: ${q.subject}`);
+            console.log(`  Subject Code: ${q.subjectCode}`);
+            console.log(`  Year: ${q.year}`);
+            console.log('------------------------');
         });
 
-        // Extract paper details from the first question
         const paperDetails = {
             subjectCode: partA[0]?.subjectCode || partB[0]?.subjectCode || '',
             subject: partA[0]?.subject || partB[0]?.subject || '',
@@ -575,7 +521,6 @@ app.post('/api/generate', (req, res) => {
             month: partA[0]?.month || partB[0]?.month || ''
         };
 
-        // Validate paper details
         const requiredFields = ['subjectCode', 'subject', 'branch', 'regulation', 'year', 'semester'];
         for (const field of requiredFields) {
             if (!paperDetails[field] || paperDetails[field] === '') {
