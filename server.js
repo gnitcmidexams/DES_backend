@@ -315,11 +315,11 @@ function generateQuestions(paperType) {
             { label: '7b', unit: 2 }
         ];
         partALabels = [
-            { label: '1', unit: 1 },
-            { label: '2', unit: 1 },
-            { label: '3', unit: 2 },
-            { label: '4', unit: 2 },
-            { label: '5', unit: 3 }
+            { label: '1.a', unit: 1 },
+            { label: ' b', unit: 1 },
+            { label: ' c', unit: 2 },
+            { label: ' d', unit: 2 },
+            { label: ' e', unit: 3 }
         ];
     } else if (paperType === 'mid2') {
         questionLabels = [
@@ -337,11 +337,11 @@ function generateQuestions(paperType) {
             { label: '7b', unit: 5 }
         ];
         partALabels = [
-            { label: '1', unit: 3 },
-            { label: '2', unit: 4 },
-            { label: '3', unit: 4 },
-            { label: '4', unit: 5 },
-            { label: '5', unit: 5 }
+            { label: '1.a', unit: 3 },
+            { label: 'b', unit: 4 },
+            { label: 'c', unit: 4 },
+            { label: 'd', unit: 5 },
+            { label: 'e', unit: 5 }
         ];
     } else {
         throw new Error('Invalid paper type');
